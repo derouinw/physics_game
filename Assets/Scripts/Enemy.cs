@@ -5,10 +5,13 @@ using UnityEngine;
 public class Enemy : MonoBehaviour {
 
     public float speed = 0.0001f;
+	[Tooltip("Degree of impulse enemy can suffer without taking damage")]
+	public float fallThreshold = 0.1f; 
     public int health = 100;
 
+
     private Transform target;
-    private EnemyState CurrentEnemyState;
+    public EnemyState CurrentEnemyState;
 
     private float StandingTimer = 0.0f;
     private float StandingDuration = 3.0f;
@@ -19,24 +22,30 @@ public class Enemy : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         target = GameObject.FindGameObjectWithTag("Castle").transform;
-        CurrentEnemyState = EnemyState.Moving;
 	}
 
     void OnCollisionEnter(Collision collision)
     {
-        Debug.Log("Collision impulse: " + collision.impulse);
-        health -= (int) collision.impulse.y * 10;
-        if (health <= 0)
-        {
-            Debug.Log("Killed enemy");
-            Destroy(gameObject);
-        }
+        
 
         if (collision.collider.gameObject.tag.Equals("Table") && CurrentEnemyState == EnemyState.Flying)
         {
             CurrentEnemyState = EnemyState.Standing;
             StandingTimer = 0.0f;
-            //StandingTransition = Quaternion.Inverse(transform.rotation) * Quaternion.identity;
+            
+			Debug.Log("Collision impulse: " + collision.impulse);
+			if (collision.impulse.y > fallThreshold) {
+				// Remove health upon impact
+				health -= (int)collision.impulse.y * 10;
+				if (health <= 0) {
+					Debug.Log ("Killed enemy");
+					Destroy (gameObject);
+					return;
+				}
+
+				// Recolor according to health
+				gameObject.GetComponent<Renderer> ().material.color = GetColorFromHealth (health);
+			}
         }
     }
 	
@@ -79,6 +88,12 @@ public class Enemy : MonoBehaviour {
     {
         CurrentEnemyState = EnemyState.Flying;
     }
+
+	private Color GetColorFromHealth(int health)
+	{
+		// return a new shade of gray for now (eventually could turn from green to red) --> HWPro for this function
+		return new Color ((float)health / 100f, (float)health / 100f, (float)health / 100f);
+	}	
 }
 
 public enum EnemyState
