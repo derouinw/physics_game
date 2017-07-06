@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Grab : MonoBehaviour {
 
+    private GameObject releasedObj;
     private GameObject selectedObj;
     private GameObject grabbableEnemy;
     public Transform gripTransform;
@@ -12,6 +13,8 @@ public class Grab : MonoBehaviour {
     private SteamVR_TrackedController _controller;
 
     private Vector3[] positions = new Vector3[2]; // positions[0] last frame, positions[1] this frame;
+    private Vector3 releasedVelocity;
+    private bool justReleased; 
 
     private bool gripGripped;
 
@@ -28,7 +31,10 @@ public class Grab : MonoBehaviour {
         _controller.Ungripped += HandleGripUngripped;
         positions[0] = Vector3.zero;
         positions[1] = Vector3.zero;
+        releasedVelocity = new Vector3(-99,-99,-99);
+        justReleased = false;
 
+        releasedObj = null;
         selectedObj = null;
         grabbableEnemy = null;
         gripGripped = false;
@@ -38,13 +44,27 @@ public class Grab : MonoBehaviour {
     void FixedUpdate () {
         if (selectedObj)
         {
+            Debug.Log("Updating velocity");
             positions[0] = positions[1];
             positions[1] = selectedObj.transform.position;
+            Debug.Log("Selected obj velocity: " + selectedObj.GetComponent<Rigidbody>().velocity);
         }
-        if (_controllerDevice.GetPress(SteamVR_Controller.ButtonMask.Grip))
+       
+        if (!releasedVelocity.Equals(new Vector3(-99,-99,-99)) && justReleased)
         {
+            releasedObj.GetComponent<Rigidbody>().velocity = releasedVelocity; // this will correct the odd velocity issue
+            justReleased = false;
+        }
+        if (releasedObj)
+        {
+            Debug.Log("Released V: " + releasedObj.GetComponent<Rigidbody>().velocity);
+        }
+        if (_controllerDevice.GetPressDown(SteamVR_Controller.ButtonMask.Grip))
+        {
+            Debug.Log("Gripped");
             if (grabbableEnemy)
             {
+                Debug.Log("Grab sequence begins");
                 selectedObj = grabbableEnemy;
                 Debug.Log(selectedObj.name);
                 selectedObj.transform.position = gripTransform.position;
@@ -52,18 +72,33 @@ public class Grab : MonoBehaviour {
                 joint.connectedBody = selectedObj.GetComponent<Rigidbody>();
             }
         }
-        else
+        if (_controllerDevice.GetPressUp(SteamVR_Controller.ButtonMask.Grip))
         {
+            Debug.Log("Ungripped");
             if (gameObject.GetComponent<FixedJoint>() && selectedObj)
             {
-                Vector3 velocity = (positions[1] - positions[0]) / Time.deltaTime;
-                selectedObj.GetComponent<Rigidbody>().velocity = velocity;
-                Destroy(gameObject.GetComponent<FixedJoint>());
-                Debug.Log(velocity);
-                selectedObj = null;
+                Debug.Log("Launch sequence begins");
+                releasedVelocity = (positions[1] - positions[0]) / Time.deltaTime;
+                foreach (FixedJoint joint in gameObject.GetComponents<FixedJoint>()) {
+                    Destroy(joint);
+                    //Debug.Log("Fixed Joint value: " + joint + " & Component value: " + gameObject.GetComponent<FixedJoint>());
+                }
+                releasedObj = GameObject.Instantiate(selectedObj);
+                releasedObj.GetComponent<Rigidbody>().velocity = releasedVelocity;
+                Debug.Log("Released @ release: " + releasedObj.GetComponent<Rigidbody>().velocity);
+                justReleased = true;
+
+                // For garbage collection?
+                Destroy(selectedObj);      
             }
         }
 	}
+
+    private void LateUpdate()
+    {
+        //if (!_controllerDevice.GetPress(SteamVR_Controller.ButtonMask.Grip))
+        //    selectedObj = null;
+    }
 
     private void HandleGripGripped(object sender, ClickedEventArgs e)
     {
@@ -83,5 +118,10 @@ public class Grab : MonoBehaviour {
         {
             grabbableEnemy = other.gameObject;
         }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        grabbableEnemy = null;
     }
 }
