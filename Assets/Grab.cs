@@ -52,12 +52,12 @@ public class Grab : MonoBehaviour {
        
         if (!releasedVelocity.Equals(new Vector3(-99,-99,-99)) && justReleased)
         {
-            releasedObj.GetComponent<Rigidbody>().velocity = releasedVelocity; // this will correct the odd velocity issue
+            selectedObj.GetComponent<Rigidbody>().velocity = releasedVelocity; // this will correct the odd velocity issue
             justReleased = false;
         }
         if (releasedObj)
         {
-            Debug.Log("Released V: " + releasedObj.GetComponent<Rigidbody>().velocity);
+            Debug.Log("Released V: " + selectedObj.GetComponent<Rigidbody>().velocity);
         }
         if (_controllerDevice.GetPressDown(SteamVR_Controller.ButtonMask.Grip))
         {
@@ -79,17 +79,21 @@ public class Grab : MonoBehaviour {
             {
                 Debug.Log("Launch sequence begins");
                 releasedVelocity = (positions[1] - positions[0]) / Time.deltaTime;
+                
                 foreach (FixedJoint joint in gameObject.GetComponents<FixedJoint>()) {
+                    joint.connectedBody = null;
                     Destroy(joint);
                     //Debug.Log("Fixed Joint value: " + joint + " & Component value: " + gameObject.GetComponent<FixedJoint>());
                 }
-                releasedObj = GameObject.Instantiate(selectedObj);
-                releasedObj.GetComponent<Rigidbody>().velocity = releasedVelocity;
-                Debug.Log("Released @ release: " + releasedObj.GetComponent<Rigidbody>().velocity);
-                justReleased = true;
+                //releasedObj = GameObject.Instantiate(selectedObj);
+                selectedObj.GetComponent<Rigidbody>().velocity = gameObject.GetComponent<Rigidbody>().velocity;
+                selectedObj.GetComponent<Rigidbody>().angularVelocity = gameObject.GetComponent<Rigidbody>().angularVelocity;
+
+                Debug.Log("Released @ release: " + selectedObj.GetComponent<Rigidbody>().velocity);
+                //justReleased = true;
 
                 // For garbage collection?
-                Destroy(selectedObj);      
+                selectedObj = null;      
             }
         }
 	}
